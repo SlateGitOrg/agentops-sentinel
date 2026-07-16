@@ -1,0 +1,21 @@
+# Optional local-dev stack: the app + a real Redis for session persistence.
+# Not required to build, test, or run the app -- the default in-memory
+# session store and offline FakeLLMClient work with no external services.
+#
+#   docker compose up --build
+#
+services:
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      AGENTOPS_LLM_PROVIDER: fake
+      AGENTOPS_REDIS_URL: redis://redis:6379/0
+    depends_on:
+      - redis
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
