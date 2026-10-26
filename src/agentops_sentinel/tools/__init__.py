@@ -13,9 +13,9 @@ from agentops_sentinel.tools.order_lookup import OrderLookupTool
 from agentops_sentinel.tools.refund_tool import RefundTool
 
 __all__ = [
-    "ToolError",
-    "ToolNotFoundError",
     "KnowledgeBaseSearchTool",
     "OrderLookupTool",
     "RefundTool",
+    "ToolError",
+    "ToolNotFoundError",
 ]

@@ -23,7 +23,8 @@ traced outcome, not a crash.
 
 from __future__ import annotations
 
-from typing import Any, Callable, TypedDict
+from collections.abc import Callable
+from typing import Any, TypedDict
 
 from langgraph.graph import END, StateGraph
 

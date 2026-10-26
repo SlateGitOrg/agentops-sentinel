@@ -45,9 +45,11 @@ class TestTracedStep:
     def test_nested_spans_share_trace_id_with_parent_child_link(
         self, isolated_tracing: DecisionTraceStore
     ):
-        with traced_step("outer", kind="supervisor", trace_id="nested"):
-            with traced_step("inner", kind="agent", trace_id="nested"):
-                pass
+        with (
+            traced_step("outer", kind="supervisor", trace_id="nested"),
+            traced_step("inner", kind="agent", trace_id="nested"),
+        ):
+            pass
 
         spans = {s["name"]: s for s in isolated_tracing.get_trace("nested")}
         assert spans["inner"]["parent_span_id"] == spans["outer"]["span_id"]

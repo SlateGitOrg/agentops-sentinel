@@ -59,7 +59,7 @@ class RefundTool:
         if order_id.startswith("FLAKY-") and attempt < 2:
             raise ToolError(f"payment-gateway timeout refunding {order_id} (attempt {attempt})")
 
-        real_id = order_id[len("FLAKY-") :] if order_id.startswith("FLAKY-") else order_id
+        real_id = order_id.removeprefix("FLAKY-")
         if order_id.startswith("MISSING-") or real_id not in self._orders:
             raise ToolNotFoundError(f"no order found for id '{order_id}'")
 

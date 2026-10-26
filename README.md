@@ -1,16 +1,26 @@
 # agentops-sentinel
 
-**A supervisor/critique agent framework for support-ticket triage — reliable, cost-bounded, and fully traced.**
+A supervisor/critique agent framework for support-ticket triage: bounded, observable and self-correcting.
+
+[![CI](https://github.com/SlateGitOrg/agentops-sentinel/actions/workflows/ci.yml/badge.svg)](https://github.com/SlateGitOrg/agentops-sentinel/actions/workflows/ci.yml)
 
 ![agentops-sentinel](assets/hero.png)
 
-> Bounded, observable, self-correcting agentic workflows for support-ticket triage: a planner routes to specialized tool-using sub-agents, a self-critique loop retries or escalates, and every decision is traced end-to-end.
+## Why
 
-## The real problem
+Multi-step agent workflows tend to fail in three ways: one bad tool call derails the whole run, nobody can say afterwards why the agent took a given action, and a stuck retry loop can burn an unbounded number of LLM calls before anyone notices.
 
-Teams shipping agentic features run into the same wall: multi-step agent workflows are **unreliable** (one bad tool call derails the whole run), **unobservable** (nobody can say *why* the agent took a wrong action after the fact), and **cost-unbounded** (a stuck retry loop can burn an unbounded number of LLM calls before anyone notices). Most "agent demos" skip straight past this — a single LLM call with a couple of tools, no supervision, no budget, no trace.
+agentops-sentinel addresses all three in one concrete domain, support-ticket triage. A supervisor routes each ticket to a specialist sub-agent (knowledge base, order lookup or refunds). A self-critique pass reviews every result and decides to accept, retry or escalate to a human. Every decision and tool call becomes an OpenTelemetry span shown in a small trace dashboard. Hard guardrails (a step limit, a dollar budget and a per-step timeout) make sure each run terminates on budget even when tools fail.
 
-`agentops-sentinel` is a concrete, working answer to that problem in one real domain: **support-ticket triage**. A supervisor/planner routes each ticket to a specialized sub-agent (knowledge base, order lookup, or refunds); a self-critique pass reviews every sub-agent result and decides to accept it, retry, or escalate to a human; every decision and tool call is captured as an OpenTelemetry span and rendered in a small decision-trace dashboard; and hard guardrails — a step limit, a dollar budget, and a per-step timeout — guarantee the whole thing terminates, on budget, even when tools fail or the agent gets stuck.
+## Features
+
+- **Supervisor routing** to one of three specialists, or straight to human escalation for hostile, legal or ambiguous tickets.
+- **Tool-using sub-agents**: keyword-ranked KB search, order-status lookup, and an idempotent refund processor that refuses to refund more than the order total.
+- **Self-critique loop** that accepts, retries (bounded) or escalates based on confidence and tool errors.
+- **Guardrails**: max steps, dollar budget charged per LLM/tool call, and a per-step timeout enforced in a worker thread.
+- **Tracing**: every supervisor decision, agent run, critique and escalation is an OpenTelemetry span, kept in an in-process store and served at `/traces/{id}` and `/dashboard`.
+- **Offline by default**: a deterministic `FakeLLMClient` runs the same control flow as a real model; Anthropic and OpenAI clients are optional.
+- **Session store**: in-memory, or Redis when `AGENTOPS_REDIS_URL` is set.
 
 ## Architecture
 
@@ -67,7 +77,7 @@ flowchart TD
 
 ## Quick start
 
-Requires Python 3.11+.
+Requires Python 3.11+ (developed and tested on 3.13). Docker is optional.
 
 ```bash
 python3.11 -m venv .venv && source .venv/bin/activate
@@ -95,6 +105,28 @@ Or with Docker:
 ```bash
 docker build -t agentops-sentinel .
 docker run -p 8000:8000 agentops-sentinel
+```
+
+### Example
+
+Four tickets against the default offline client, with the trace events trimmed:
+
+```text
+"Where is my order ORD-1001?"
+  status=completed  route=order_agent  steps=3  cost=$0.07
+  answer: Order ORD-1001 is currently 'delivered'. Tracking: 1Z999AA10123456784. Total: $129.99.
+
+"How do I reset my password?"
+  status=completed  route=kb_agent  steps=3  cost=$0.07
+  answer: [KB-103] How to reset your password: To reset your password, click 'Forgot password' ...
+
+"I want a refund for order ORD-1002"
+  status=completed  route=refund_agent  steps=3  cost=$0.07
+  answer: Refunded $59.50 for order ORD-1002 (processed).
+
+"I will sue you, this is fraud"
+  status=escalated  route=escalate  steps=1  cost=$0.03
+  escalation_reason: supervisor_or_critique_requested_escalation
 ```
 
 ### Using a real LLM (optional)
@@ -131,10 +163,12 @@ src/agentops_sentinel/
   llm.py         LLMClient abstraction: FakeLLMClient (default) / Anthropic / OpenAI
   store.py       session/run store (in-memory, or Redis via fakeredis-tested code path)
   runner.py      AgentRunner — the public "run one ticket" entry point
-tests/           84 unit/integration tests (pytest), one Docker/Redis test skipped by default
+tests/           pytest suite (offline); one real-Redis test is skipped unless a Redis URL is set
 ```
 
 ## Testing
+
+The offline suite currently reports 84 passed, 1 skipped at 96% line coverage.
 
 ```bash
 pytest -q                                    # full offline suite
@@ -143,6 +177,13 @@ pytest -q -m integration                     # optional: needs a real Redis (ski
 ```
 
 The suite covers: tool successes/failures/edge cases, guardrail trips (budget, step limit, timeout), the deterministic LLM router and critique logic, full graph runs for every route (KB/order/refund), transient-tool-failure recovery via retry, permanent-tool-failure escalation, budget/step-exceeded escalation, direct supervisor escalation for hostile tickets, tracing span capture/isolation, the Redis-backed and in-memory session stores, and the FastAPI surface end-to-end.
+
+## Limitations
+
+- The tools run against small bundled fixtures (a few articles and orders); there is no real order, payment or helpdesk backend.
+- The default `FakeLLMClient` is a keyword/heuristic reasoner. It makes the control flow reproducible, but it is not a measure of how a real model would route tickets.
+- Runs are synchronous and in-process; there is no task queue or multi-worker deployment story.
+- Traces live in an in-process store with a bounded size. For production, attach an OTLP exporter.
 
 ## License
 

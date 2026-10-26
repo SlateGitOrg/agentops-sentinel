@@ -19,8 +19,9 @@ import contextlib
 import threading
 import time
 from collections import defaultdict, deque
+from collections.abc import Iterator
 from dataclasses import dataclass, field
-from typing import Any, Iterator
+from typing import Any
 
 from opentelemetry import trace
 from opentelemetry.sdk.resources import SERVICE_NAME, Resource
@@ -72,7 +73,7 @@ class DecisionTraceStore:
 
     def __init__(self, max_tickets: int = _MAX_TICKETS) -> None:
         self._lock = threading.Lock()
-        self._traces: "deque[str]" = deque(maxlen=max_tickets)
+        self._traces: deque[str] = deque(maxlen=max_tickets)
         self._spans: dict[str, list[DecisionSpan]] = defaultdict(list)
 
     def record(self, span: DecisionSpan) -> None:
@@ -108,7 +109,7 @@ class _DecisionExporter(SpanExporter):
     def __init__(self, store: DecisionTraceStore) -> None:
         self._store = store
 
-    def export(self, spans: "list[ReadableSpan]") -> SpanExportResult:
+    def export(self, spans: list[ReadableSpan]) -> SpanExportResult:
         for span in spans:
             ctx = span.get_span_context()
             parent = span.parent

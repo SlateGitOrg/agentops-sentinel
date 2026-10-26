@@ -10,8 +10,9 @@ raises a typed exception the graph can catch and route to escalation.
 from __future__ import annotations
 
 import concurrent.futures
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Callable, TypeVar
+from typing import TypeVar
 
 T = TypeVar("T")
 

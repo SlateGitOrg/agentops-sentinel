@@ -10,10 +10,10 @@ from agentops_sentinel.agents.supervisor import SupervisorDecision, run_supervis
 __all__ = [
     "AgentResult",
     "CritiqueDecision",
-    "run_critique",
     "KnowledgeBaseAgent",
     "OrderAgent",
     "RefundAgent",
     "SupervisorDecision",
+    "run_critique",
     "run_supervisor",
 ]

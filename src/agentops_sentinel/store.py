@@ -76,5 +76,5 @@ def build_session_store(redis_url: str = "") -> SessionStore:
         client = redis_lib.from_url(redis_url, socket_connect_timeout=0.5)
         client.ping()
         return SessionStore(redis_client=client)
-    except Exception:
+    except Exception:  # noqa: BLE001 - any connect/import failure falls back to in-memory
         return SessionStore(redis_client=None)

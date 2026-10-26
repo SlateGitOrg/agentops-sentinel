@@ -70,7 +70,7 @@ class Settings:
     )
 
     @classmethod
-    def load(cls) -> "Settings":
+    def load(cls) -> Settings:
         return cls()
 
 
